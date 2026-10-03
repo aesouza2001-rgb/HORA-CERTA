@@ -1,0 +1,9 @@
+{
+  "name":"Hora Certa MVP",
+  "short_name":"Hora Certa",
+  "start_url":".",
+  "display":"standalone",
+  "background_color":"#f3f6f9",
+  "theme_color":"#163b5c",
+  "icons":[]
+}

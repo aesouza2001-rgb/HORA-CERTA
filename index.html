@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#163b5c">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="styles.css">
+<title>Hora Certa — MVP</title>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div>
+      <div class="brand">HORA CERTA</div>
+      <div class="sub">MVP • controle de jornada</div>
+    </div>
+    <button id="adminBtn" class="ghost">Admin</button>
+  </header>
+
+  <main>
+    <section id="home" class="screen active">
+      <div class="hello">Olá, <span id="currentName">Família</span> 👋</div>
+      <div class="date" id="today"></div>
+
+      <div class="clock" id="clock">--:--:--</div>
+
+      <div class="card punch-card">
+        <div class="location" id="locationStatus">📍 Localização ainda não verificada</div>
+        <div class="address-note">Rua • bairro • cidade • CEP serão preenchidos automaticamente quando o endereço puder ser identificado.</div>
+        <button id="punchBtn" class="punch">REGISTRAR PONTO</button>
+        <div class="hint">O registro salva data, hora e localização quando autorizada.</div>
+      </div>
+
+      <div class="grid2">
+        <div class="stat"><span>Saldo hoje</span><strong id="todayBalance">00:00</strong></div>
+        <div class="stat"><span>Banco de horas</span><strong id="bankBalance">00:00</strong></div>
+      </div>
+
+      <div class="card">
+        <h3>Jornada de hoje</h3>
+        <div id="todayPunches" class="timeline"></div>
+      </div>
+    </section>
+
+    <section id="history" class="screen">
+      <h2>Meu histórico</h2>
+      <div class="card">
+        <div class="row"><span>Jornada diária</span><strong id="dailyTargetLabel">08:00</strong></div>
+        <div id="historyList"></div>
+      </div>
+    </section>
+
+    <section id="admin" class="screen">
+      <div class="section-head">
+        <div><h2>Painel da empresa</h2><div class="muted">Dados deste dispositivo</div></div>
+        <button id="resetBtn" class="danger ghost">Limpar dados</button>
+      </div>
+      <div class="grid4">
+        <div class="stat"><span>Pessoas</span><strong id="peopleCount">0</strong></div>
+        <div class="stat"><span>Trabalhando</span><strong id="workingCount">0</strong></div>
+        <div class="stat"><span>Horas extras</span><strong id="extraTotal">00:00</strong></div>
+        <div class="stat"><span>Saldo</span><strong id="adminBalance">00:00</strong></div>
+      </div>
+      <div class="card">
+        <h3>Funcionários</h3>
+        <div id="peopleList"></div>
+        <div class="add">
+          <input id="newName" placeholder="Nome do funcionário">
+          <button id="addPerson" class="primary">Adicionar</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-screen="home" class="nav active">🏠<span>Ponto</span></button>
+    <button data-screen="history" class="nav">📅<span>Histórico</span></button>
+    <button data-screen="admin" class="nav">⚙️<span>Admin</span></button>
+  </nav>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
