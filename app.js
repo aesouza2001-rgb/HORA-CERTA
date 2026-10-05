@@ -11,13 +11,17 @@ let company = null;
 let punches = [];
 
 
-/* =========================
-   UTILIDADES
-========================= */
+/* =========================================================
+   UTILITÁRIOS
+========================================================= */
 
-const $ = (id) => document.getElementById(id);
+function $(id) {
+  return document.getElementById(id);
+}
+
 
 function todayKey() {
+
   const d = new Date();
 
   return [
@@ -27,181 +31,139 @@ function todayKey() {
   ].join("-");
 }
 
-function fmtTime(date) {
-  return new Date(date).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
+
+function localDateKey(timestamp) {
+
+  const d = new Date(timestamp);
+
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0")
+  ].join("-");
 }
 
-function fmtDate(date) {
-  return new Date(date).toLocaleDateString("pt-BR");
+
+function fmtTime(timestamp) {
+
+  return new Date(timestamp).toLocaleTimeString(
+    "pt-BR",
+    {
+      hour: "2-digit",
+      minute: "2-digit"
+    }
+  );
+
 }
 
 
-/* =========================
+function fmtDate(date = new Date()) {
+
+  return date.toLocaleDateString(
+    "pt-BR",
+    {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric"
+    }
+  );
+
+}
+
+
+/* =========================================================
    LOGIN
-========================= */
+========================================================= */
 
 function showLogin(message = "") {
 
   document.body.innerHTML = `
-    <div style="
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      background:#f4f7fa;
-      font-family:Arial,sans-serif;
-    ">
 
-      <div style="
-        width:100%;
-        max-width:400px;
-        background:white;
-        padding:30px;
-        border-radius:18px;
-        box-shadow:0 10px 30px rgba(0,0,0,.08);
-      ">
+    <div class="login-page">
 
-        <div style="
-          text-align:center;
-          font-size:28px;
-          font-weight:800;
-          color:#163b5c;
-          margin-bottom:8px;
-        ">
-          HORA CERTA
-        </div>
+      <div class="login-card">
 
-        <div style="
-          text-align:center;
-          color:#666;
-          margin-bottom:25px;
-        ">
-          Seu ponto. Sua jornada. Seu controle.
-        </div>
+        <h1>HORA CERTA</h1>
 
-        <label style="
-          display:block;
-          margin-bottom:6px;
-          font-weight:600;
-        ">
-          E-mail
-        </label>
+        <p class="subtitle">
+          Controle de jornada
+        </p>
+
+        ${
+          message
+            ? `
+              <div class="error-message">
+                ${message}
+              </div>
+            `
+            : ""
+        }
 
         <input
           id="loginEmail"
           type="email"
-          placeholder="seu@email.com"
-          style="
-            width:100%;
-            box-sizing:border-box;
-            padding:13px;
-            border:1px solid #ddd;
-            border-radius:10px;
-            margin-bottom:15px;
-          "
+          placeholder="E-mail"
+          autocomplete="email"
         >
-
-        <label style="
-          display:block;
-          margin-bottom:6px;
-          font-weight:600;
-        ">
-          Senha
-        </label>
 
         <input
           id="loginPassword"
           type="password"
-          placeholder="Sua senha"
-          style="
-            width:100%;
-            box-sizing:border-box;
-            padding:13px;
-            border:1px solid #ddd;
-            border-radius:10px;
-            margin-bottom:10px;
-          "
+          placeholder="Senha"
+          autocomplete="current-password"
         >
 
         <button
-          id="loginBtn"
-          style="
-            width:100%;
-            padding:14px;
-            border:0;
-            border-radius:10px;
-            background:#163b5c;
-            color:white;
-            font-size:16px;
-            font-weight:700;
-            cursor:pointer;
-            margin-top:8px;
-          "
+          onclick="login()"
+          class="primary-btn"
         >
           ENTRAR
         </button>
 
         <button
-          id="forgotBtn"
-          style="
-            width:100%;
-            margin-top:14px;
-            border:0;
-            background:none;
-            color:#163b5c;
-            cursor:pointer;
-            font-size:14px;
-          "
+          onclick="showForgotPassword()"
+          class="link-btn"
         >
           Esqueci minha senha
         </button>
 
-        <div
-          id="loginMessage"
-          style="
-            margin-top:15px;
-            text-align:center;
-            color:#c0392b;
-            min-height:20px;
-          "
-        >
-          ${message}
-        </div>
-
       </div>
+
     </div>
+
   `;
 
-  $("loginBtn").onclick = login;
-  $("forgotBtn").onclick = showForgotPassword;
 }
 
 
-/* =========================
-   LOGIN
-========================= */
-
 async function login() {
 
-  const email = $("loginEmail").value.trim();
-  const password = $("loginPassword").value;
+  const email =
+    $("loginEmail").value.trim();
+
+  const password =
+    $("loginPassword").value;
 
   if (!email || !password) {
 
-    $("loginMessage").textContent =
-      "Digite seu e-mail e sua senha.";
+    alert(
+      "Informe o e-mail e a senha."
+    );
 
     return;
+
   }
 
-  $("loginBtn").disabled = true;
-  $("loginBtn").textContent = "ENTRANDO...";
-  $("loginMessage").textContent = "";
+  const button =
+    document.querySelector(".primary-btn");
+
+  if (button) {
+
+    button.disabled = true;
+    button.textContent = "ENTRANDO...";
+
+  }
 
   const { data, error } =
     await db.auth.signInWithPassword({
@@ -211,159 +173,107 @@ async function login() {
 
   if (error) {
 
-    $("loginMessage").textContent =
-      "Não foi possível entrar: " + error.message;
+    alert(
+      "Não foi possível entrar.\n\n" +
+      error.message
+    );
 
-    $("loginBtn").disabled = false;
-    $("loginBtn").textContent = "ENTRAR";
+    if (button) {
+
+      button.disabled = false;
+      button.textContent = "ENTRAR";
+
+    }
 
     return;
+
   }
 
-  await loadEmployee(data.user.id);
+  if (data?.user) {
+
+    await loadEmployee(data.user.id);
+
+  }
+
 }
 
 
-/* =========================
-   ESQUECI SENHA
-========================= */
+/* =========================================================
+   RECUPERAÇÃO DE SENHA
+========================================================= */
 
-function showForgotPassword() {
+function showForgotPassword(message = "") {
 
   document.body.innerHTML = `
-    <div style="
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      background:#f4f7fa;
-      font-family:Arial,sans-serif;
-    ">
 
-      <div style="
-        width:100%;
-        max-width:400px;
-        background:white;
-        padding:30px;
-        border-radius:18px;
-        box-shadow:0 10px 30px rgba(0,0,0,.08);
-      ">
+    <div class="login-page">
 
-        <div style="
-          text-align:center;
-          font-size:28px;
-          font-weight:800;
-          color:#163b5c;
-          margin-bottom:8px;
-        ">
-          HORA CERTA
-        </div>
+      <div class="login-card">
 
-        <h2 style="
-          text-align:center;
-          margin-top:25px;
-        ">
+        <h1>HORA CERTA</h1>
+
+        <p class="subtitle">
           Recuperar senha
-        </h2>
-
-        <p style="
-          text-align:center;
-          color:#666;
-          line-height:1.5;
-        ">
-          Digite seu e-mail e enviaremos um link
-          para criar uma nova senha.
         </p>
 
+        ${
+          message
+            ? `
+              <div class="error-message">
+                ${message}
+              </div>
+            `
+            : ""
+        }
+
         <input
-          id="resetEmail"
+          id="forgotEmail"
           type="email"
-          placeholder="seu@email.com"
-          style="
-            width:100%;
-            box-sizing:border-box;
-            padding:13px;
-            border:1px solid #ddd;
-            border-radius:10px;
-            margin:15px 0;
-          "
+          placeholder="Seu e-mail"
+          autocomplete="email"
         >
 
         <button
-          id="sendResetBtn"
-          style="
-            width:100%;
-            padding:14px;
-            border:0;
-            border-radius:10px;
-            background:#163b5c;
-            color:white;
-            font-size:16px;
-            font-weight:700;
-            cursor:pointer;
-          "
+          onclick="sendPasswordReset()"
+          class="primary-btn"
         >
           ENVIAR LINK
         </button>
 
         <button
-          id="backLoginBtn"
-          style="
-            width:100%;
-            margin-top:14px;
-            border:0;
-            background:none;
-            color:#163b5c;
-            cursor:pointer;
-          "
+          onclick="showLogin()"
+          class="link-btn"
         >
-          Voltar para o login
+          Voltar para login
         </button>
 
-        <div
-          id="resetMessage"
-          style="
-            margin-top:15px;
-            text-align:center;
-            min-height:25px;
-          "
-        ></div>
-
       </div>
+
     </div>
+
   `;
 
-  $("sendResetBtn").onclick =
-    sendPasswordReset;
-
-  $("backLoginBtn").onclick =
-    showLogin;
 }
 
 
 async function sendPasswordReset() {
 
   const email =
-    $("resetEmail").value.trim();
+    $("forgotEmail").value.trim();
 
   if (!email) {
 
-    $("resetMessage").textContent =
-      "Digite seu e-mail.";
-
-    $("resetMessage").style.color =
-      "#c0392b";
+    alert(
+      "Informe seu e-mail."
+    );
 
     return;
+
   }
 
-  $("sendResetBtn").disabled = true;
-  $("sendResetBtn").textContent =
-    "ENVIANDO...";
-
   const redirectTo =
-    window.location.origin + window.location.pathname;
+    window.location.origin +
+    window.location.pathname;
 
   const { error } =
     await db.auth.resetPasswordForEmail(
@@ -375,137 +285,65 @@ async function sendPasswordReset() {
 
   if (error) {
 
-    $("resetMessage").textContent =
-      "Erro: " + error.message;
-
-    $("resetMessage").style.color =
-      "#c0392b";
-
-    $("sendResetBtn").disabled = false;
-    $("sendResetBtn").textContent =
-      "ENVIAR LINK";
+    alert(
+      "Falha ao enviar a recuperação de senha.\n\n" +
+      error.message
+    );
 
     return;
+
   }
 
-  $("resetMessage").textContent =
-    "✅ Link enviado! Verifique seu e-mail.";
+  alert(
+    "✅ Link de recuperação enviado para seu e-mail."
+  );
 
-  $("resetMessage").style.color =
-    "#198754";
+  showLogin();
 
-  $("sendResetBtn").disabled = false;
-  $("sendResetBtn").textContent =
-    "ENVIAR LINK";
 }
 
-
-/* =========================
-   NOVA SENHA
-========================= */
 
 function showUpdatePassword() {
 
   document.body.innerHTML = `
-    <div style="
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-      background:#f4f7fa;
-      font-family:Arial,sans-serif;
-    ">
 
-      <div style="
-        width:100%;
-        max-width:400px;
-        background:white;
-        padding:30px;
-        border-radius:18px;
-        box-shadow:0 10px 30px rgba(0,0,0,.08);
-      ">
+    <div class="login-page">
 
-        <div style="
-          text-align:center;
-          font-size:28px;
-          font-weight:800;
-          color:#163b5c;
-        ">
-          HORA CERTA
-        </div>
+      <div class="login-card">
 
-        <h2 style="text-align:center;margin-top:25px">
+        <h1>HORA CERTA</h1>
+
+        <p class="subtitle">
           Criar nova senha
-        </h2>
-
-        <p style="
-          text-align:center;
-          color:#666;
-        ">
-          Digite sua nova senha abaixo.
         </p>
 
         <input
           id="newPassword"
           type="password"
           placeholder="Nova senha"
-          style="
-            width:100%;
-            box-sizing:border-box;
-            padding:13px;
-            border:1px solid #ddd;
-            border-radius:10px;
-            margin:15px 0 10px;
-          "
+          autocomplete="new-password"
         >
 
         <input
           id="confirmPassword"
           type="password"
-          placeholder="Confirme a nova senha"
-          style="
-            width:100%;
-            box-sizing:border-box;
-            padding:13px;
-            border:1px solid #ddd;
-            border-radius:10px;
-            margin-bottom:15px;
-          "
+          placeholder="Confirmar nova senha"
+          autocomplete="new-password"
         >
 
         <button
-          id="updatePasswordBtn"
-          style="
-            width:100%;
-            padding:14px;
-            border:0;
-            border-radius:10px;
-            background:#163b5c;
-            color:white;
-            font-size:16px;
-            font-weight:700;
-            cursor:pointer;
-          "
+          onclick="updatePassword()"
+          class="primary-btn"
         >
           SALVAR NOVA SENHA
         </button>
 
-        <div
-          id="updateMessage"
-          style="
-            margin-top:15px;
-            text-align:center;
-            min-height:25px;
-          "
-        ></div>
-
       </div>
+
     </div>
+
   `;
 
-  $("updatePasswordBtn").onclick =
-    updatePassword;
 }
 
 
@@ -519,40 +357,33 @@ async function updatePassword() {
 
   if (!password || !confirm) {
 
-    $("updateMessage").textContent =
-      "Preencha os dois campos.";
-
-    $("updateMessage").style.color =
-      "#c0392b";
+    alert(
+      "Preencha os dois campos."
+    );
 
     return;
-  }
 
-  if (password.length < 6) {
-
-    $("updateMessage").textContent =
-      "A senha precisa ter pelo menos 6 caracteres.";
-
-    $("updateMessage").style.color =
-      "#c0392b";
-
-    return;
   }
 
   if (password !== confirm) {
 
-    $("updateMessage").textContent =
-      "As senhas não são iguais.";
-
-    $("updateMessage").style.color =
-      "#c0392b";
+    alert(
+      "As senhas não são iguais."
+    );
 
     return;
+
   }
 
-  $("updatePasswordBtn").disabled = true;
-  $("updatePasswordBtn").textContent =
-    "SALVANDO...";
+  if (password.length < 6) {
+
+    alert(
+      "A senha deve possuir pelo menos 6 caracteres."
+    );
+
+    return;
+
+  }
 
   const { error } =
     await db.auth.updateUser({
@@ -561,34 +392,29 @@ async function updatePassword() {
 
   if (error) {
 
-    $("updateMessage").textContent =
-      "Erro: " + error.message;
-
-    $("updateMessage").style.color =
-      "#c0392b";
-
-    $("updatePasswordBtn").disabled = false;
-    $("updatePasswordBtn").textContent =
-      "SALVAR NOVA SENHA";
+    alert(
+      "Não foi possível atualizar a senha.\n\n" +
+      error.message
+    );
 
     return;
+
   }
 
-  $("updateMessage").textContent =
-    "✅ Senha alterada com sucesso!";
+  alert(
+    "✅ Senha atualizada com sucesso!"
+  );
 
-  $("updateMessage").style.color =
-    "#198754";
+  await db.auth.signOut();
 
-  setTimeout(() => {
-    loadCurrentSession();
-  }, 1500);
+  showLogin();
+
 }
 
 
-/* =========================
+/* =========================================================
    FUNCIONÁRIO
-========================= */
+========================================================= */
 
 async function loadEmployee(userId) {
 
@@ -602,6 +428,8 @@ async function loadEmployee(userId) {
 
   if (error || !data) {
 
+    console.error(error);
+
     await db.auth.signOut();
 
     showLogin(
@@ -609,20 +437,23 @@ async function loadEmployee(userId) {
     );
 
     return;
+
   }
 
   employee = data;
 
   await loadCompany();
+
   await loadPunches();
 
   renderApp();
+
 }
 
 
-/* =========================
+/* =========================================================
    EMPRESA
-========================= */
+========================================================= */
 
 async function loadCompany() {
 
@@ -634,14 +465,17 @@ async function loadCompany() {
       .single();
 
   if (!error) {
+
     company = data;
+
   }
+
 }
 
 
-/* =========================
-   PONTOS
-========================= */
+/* =========================================================
+   REGISTROS
+========================================================= */
 
 async function loadPunches() {
 
@@ -651,124 +485,158 @@ async function loadPunches() {
       .select("*")
       .eq("employee_id", employee.id)
       .order("timestamp", {
-        ascending:true
+        ascending: true
       });
 
   if (!error) {
+
     punches = data || [];
+
   } else {
+
     console.error(error);
+
     punches = [];
+
   }
+
 }
 
 
-/* =========================
-   APP
-========================= */
+/* =========================================================
+   APLICAÇÃO PRINCIPAL
+========================================================= */
 
 function renderApp() {
 
   document.body.innerHTML = `
-    <div id="app">
 
-      <header style="
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        padding:18px;
-      ">
+    <div class="app">
+
+      <header class="topbar">
 
         <div>
 
-          <div class="brand">
-            HORA CERTA
-          </div>
+          <strong>HORA CERTA</strong>
 
-          <div class="sub">
+          <span id="companyName">
             ${company?.name || "Empresa"}
-          </div>
+          </span>
 
         </div>
 
         <button
-          id="logoutBtn"
-          class="ghost"
+          onclick="logout()"
+          class="logout-btn"
         >
-          Sair
+          SAIR
         </button>
 
       </header>
 
 
-      <main>
+      <main class="container">
 
-        <section
-          class="screen active"
-        >
+        <section class="welcome">
 
-          <div class="hello">
-            Olá,
-            <span>
-              ${employee.name}
-            </span>
-            👋
-          </div>
+          <h2>
+            Olá, ${employee.name || "Funcionário"} 👋
+          </h2>
 
-          <div class="date">
-            ${new Date().toLocaleDateString(
-              "pt-BR",
-              {
-                weekday:"long",
-                day:"2-digit",
-                month:"long",
-                year:"numeric"
-              }
-            )}
-          </div>
+          <p>
+            ${fmtDate()}
+          </p>
 
           <div
-            class="clock"
             id="clock"
+            class="clock"
           >
-            --:--:--
+            --:--
+          </div>
+
+        </section>
+
+
+        <div
+          id="locationStatus"
+          class="location-status"
+        >
+          📍 Aguardando localização
+        </div>
+
+
+        <button
+          id="punchBtn"
+          onclick="punch()"
+          class="punch-btn"
+        >
+          REGISTRAR ENTRADA
+        </button>
+
+
+        <section class="stats-grid">
+
+          <div class="stat">
+
+            <span>
+              Registros hoje
+            </span>
+
+            <strong id="todayCount">
+              0
+            </strong>
+
           </div>
 
 
-          <div class="card punch-card">
+          <div class="stat">
 
-            <div
-              class="location"
-              id="locationStatus"
-            >
-              📍 Localização será solicitada
-            </div>
+            <span>
+              Status
+            </span>
 
-            <button
-              id="punchBtn"
-              class="punch"
-            >
-              REGISTRAR ENTRADA
-            </button>
-
-            <div class="hint">
-              O registro salva data,
-              hora e localização.
-            </div>
+            <strong id="todayStatus">
+              Fora
+            </strong>
 
           </div>
 
+        </section>
 
-          <div class="grid2">
+
+        <!-- BANCO DE HORAS -->
+
+        <div
+          class="card"
+          style="
+            margin-top:16px;
+            border-left:5px solid #163b5c;
+          "
+        >
+
+          <h3 style="margin-top:0;">
+            🕐 Meu Banco de Horas
+          </h3>
+
+
+          <div
+            style="
+              display:grid;
+              grid-template-columns:
+                repeat(3,minmax(0,1fr));
+              gap:12px;
+              margin-top:14px;
+            "
+          >
 
             <div class="stat">
 
               <span>
-                Registros hoje
+                Saldo acumulado
               </span>
 
-              <strong id="todayCount">
-                0
+              <strong id="bankBalance">
+                +00:00
               </strong>
 
             </div>
@@ -777,11 +645,24 @@ function renderApp() {
             <div class="stat">
 
               <span>
-                Status
+                Trabalhado hoje
               </span>
 
-              <strong id="statusText">
-                Fora
+              <strong id="workedToday">
+                00:00
+              </strong>
+
+            </div>
+
+
+            <div class="stat">
+
+              <span>
+                Saldo de hoje
+              </span>
+
+              <strong id="todayBalance">
+                00:00
               </strong>
 
             </div>
@@ -789,31 +670,75 @@ function renderApp() {
           </div>
 
 
-          <div class="card">
+          <div
+            style="
+              margin-top:14px;
+              color:#666;
+              font-size:14px;
+            "
+          >
 
-            <h3>
-              Jornada de hoje
-            </h3>
-
-            <div
-              id="todayPunches"
-              class="timeline"
-            ></div>
+            Jornada prevista:
+            <strong>08:00</strong>
+            por dia
 
           </div>
+
+        </div>
+
+
+        <!-- JORNADA -->
+
+        <section class="card">
+
+          <h3>
+            Jornada de hoje
+          </h3>
+
+          <div id="todayPunches"></div>
 
         </section>
 
       </main>
 
     </div>
+
   `;
 
-  $("logoutBtn").onclick =
-    logout;
 
-  $("punchBtn").onclick =
-    punch;
+  startClock();
+
+  renderToday();
+
+}
+
+
+/* =========================================================
+   RELÓGIO
+========================================================= */
+
+function startClock() {
+
+  function updateClock() {
+
+    const clock =
+      $("clock");
+
+    if (!clock) {
+      return;
+    }
+
+    clock.textContent =
+      new Date().toLocaleTimeString(
+        "pt-BR",
+        {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        }
+      );
+
+  }
 
   updateClock();
 
@@ -822,133 +747,485 @@ function renderApp() {
     1000
   );
 
-  renderToday();
 }
 
 
-/* =========================
-   RELÓGIO
-========================= */
-
-function updateClock() {
-
-  const clock =
-    $("clock");
-
-  if (clock) {
-
-    clock.textContent =
-      new Date().toLocaleTimeString(
-        "pt-BR"
-      );
-
-  }
-}
-
-
-/* =========================
-   HOJE
-========================= */
+/* =========================================================
+   PONTOS DE HOJE
+========================================================= */
 
 function todayPunchList() {
 
-  return punches.filter(p => {
+  return punches
+    .filter(p => {
 
-    return String(
-      p.timestamp
-    ).slice(0,10) === todayKey();
+      return (
+        localDateKey(p.timestamp) ===
+        todayKey()
+      );
 
-  });
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.timestamp) -
+        new Date(b.timestamp)
+    );
+
 }
 
+
+/* =========================================================
+   BANCO DE HORAS
+========================================================= */
+
+function formatDuration(ms) {
+
+  const negative =
+    ms < 0;
+
+  const totalMinutes =
+    Math.round(
+      Math.abs(ms) / 60000
+    );
+
+  const hours =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minutes =
+    totalMinutes % 60;
+
+  return (
+    negative
+      ? "-"
+      : "+"
+  ) +
+  String(hours).padStart(2, "0") +
+  ":" +
+  String(minutes).padStart(2, "0");
+
+}
+
+
+function formatWorked(ms) {
+
+  const totalMinutes =
+    Math.round(
+      Math.max(0, ms) / 60000
+    );
+
+  const hours =
+    Math.floor(
+      totalMinutes / 60
+    );
+
+  const minutes =
+    totalMinutes % 60;
+
+  return (
+    String(hours).padStart(2, "0") +
+    ":" +
+    String(minutes).padStart(2, "0")
+  );
+
+}
+
+
+/*
+  Calcula o tempo efetivamente trabalhado.
+
+  Exemplo:
+
+  Entrada       08:00
+  Saída almoço  12:00
+  Retorno       13:00
+  Saída         17:00
+
+  Resultado:
+  4h + 4h = 8h
+*/
+
+function workedMilliseconds(list) {
+
+  let total = 0;
+
+  for (
+    let i = 0;
+    i + 1 < list.length;
+    i += 2
+  ) {
+
+    const start =
+      new Date(
+        list[i].timestamp
+      ).getTime();
+
+    const end =
+      new Date(
+        list[i + 1].timestamp
+      ).getTime();
+
+    if (
+      Number.isFinite(start) &&
+      Number.isFinite(end) &&
+      end >= start
+    ) {
+
+      total +=
+        end - start;
+
+    }
+
+  }
+
+  return total;
+
+}
+
+
+function calculateBankHours() {
+
+  const groups = {};
+
+
+  punches
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.timestamp) -
+        new Date(b.timestamp)
+    )
+    .forEach(p => {
+
+      const key =
+        localDateKey(
+          p.timestamp
+        );
+
+      if (!groups[key]) {
+
+        groups[key] = [];
+
+      }
+
+      groups[key].push(p);
+
+    });
+
+
+  /*
+    Jornada padrão:
+    8 horas por dia
+  */
+
+  const dailyExpected =
+    8 *
+    60 *
+    60 *
+    1000;
+
+
+  let accumulated = 0;
+
+
+  Object.keys(groups)
+    .forEach(key => {
+
+      const worked =
+        workedMilliseconds(
+          groups[key]
+        );
+
+      accumulated +=
+        worked -
+        dailyExpected;
+
+    });
+
+
+  const today =
+    todayPunchList();
+
+
+  const workedToday =
+    workedMilliseconds(
+      today
+    );
+
+
+  const todayBalance =
+    workedToday -
+    dailyExpected;
+
+
+  return {
+
+    accumulated,
+
+    workedToday,
+
+    todayBalance
+
+  };
+
+}
+
+
+function renderBankHours() {
+
+  const bank =
+    calculateBankHours();
+
+
+  const balance =
+    $("bankBalance");
+
+  const worked =
+    $("workedToday");
+
+  const today =
+    $("todayBalance");
+
+
+  if (
+    !balance ||
+    !worked ||
+    !today
+  ) {
+
+    return;
+
+  }
+
+
+  balance.textContent =
+    formatDuration(
+      bank.accumulated
+    );
+
+
+  worked.textContent =
+    formatWorked(
+      bank.workedToday
+    );
+
+
+  today.textContent =
+    formatDuration(
+      bank.todayBalance
+    );
+
+
+  /*
+    Verde = positivo
+    Vermelho = negativo
+  */
+
+  balance.style.color =
+    bank.accumulated >= 0
+      ? "#198754"
+      : "#c0392b";
+
+
+  today.style.color =
+    bank.todayBalance >= 0
+      ? "#198754"
+      : "#c0392b";
+
+}
+
+
+/* =========================================================
+   RENDERIZA JORNADA
+========================================================= */
 
 function renderToday() {
 
   const list =
     todayPunchList();
 
-  $("todayCount").textContent =
+
+  const count =
+    $("todayCount");
+
+  const status =
+    $("todayStatus");
+
+  const button =
+    $("punchBtn");
+
+  const container =
+    $("todayPunches");
+
+
+  if (!count ||
+      !status ||
+      !button ||
+      !container) {
+
+    return;
+
+  }
+
+
+  count.textContent =
     list.length;
+
+
+  /*
+    Número ímpar de registros:
+    funcionário está trabalhando.
+  */
 
   const working =
     list.length % 2 === 1;
 
-  $("statusText").textContent =
+
+  status.textContent =
     working
       ? "Trabalhando"
       : "Fora";
 
-  $("punchBtn").textContent =
+
+  status.style.color =
+    working
+      ? "#198754"
+      : "#555";
+
+
+  button.textContent =
     working
       ? "REGISTRAR SAÍDA"
       : "REGISTRAR ENTRADA";
 
 
-  const container =
-    $("todayPunches");
+  if (list.length === 0) {
 
-  container.innerHTML = "";
+    container.innerHTML = `
 
+      <div
+        style="
+          padding:20px;
+          text-align:center;
+          color:#777;
+        "
+      >
+        Nenhum registro hoje.
+      </div>
 
-  if (!list.length) {
+    `;
+
+  } else {
 
     container.innerHTML =
-      `<div class="muted">
-        Nenhum registro hoje.
-      </div>`;
+      list.map(
+        (p, index) => {
 
-    return;
+          let label;
+
+
+          if (index === 0) {
+
+            label =
+              "Entrada";
+
+          } else if (index === 1) {
+
+            label =
+              "Saída intervalo";
+
+          } else if (index === 2) {
+
+            label =
+              "Retorno intervalo";
+
+          } else if (index === 3) {
+
+            label =
+              "Saída";
+
+          } else {
+
+            label =
+              index % 2 === 0
+                ? "Entrada"
+                : "Saída";
+
+          }
+
+
+          return `
+
+            <div
+              style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                padding:12px 0;
+                border-bottom:1px solid #eee;
+              "
+            >
+
+              <div>
+
+                <strong>
+                  ${label}
+                </strong>
+
+                ${
+                  p.address
+                    ? `
+                      <div
+                        style="
+                          font-size:12px;
+                          color:#777;
+                          margin-top:4px;
+                        "
+                      >
+                        📍 ${p.address}
+                      </div>
+                    `
+                    : ""
+                }
+
+              </div>
+
+
+              <strong>
+                ${fmtTime(p.timestamp)}
+              </strong>
+
+            </div>
+
+          `;
+
+        }
+      ).join("");
+
   }
 
 
-  list.forEach(
-    (p,index) => {
+  renderBankHours();
 
-      const div =
-        document.createElement(
-          "div"
-        );
-
-      div.className =
-        "item";
-
-      div.innerHTML = `
-        <span>
-          ${
-            index % 2 === 0
-              ? "Entrada"
-              : "Saída / intervalo"
-          }
-        </span>
-
-        <strong>
-          ${fmtTime(p.timestamp)}
-        </strong>
-      `;
-
-      container.appendChild(
-        div
-      );
-
-    }
-  );
 }
 
 
-/* =========================
+/* =========================================================
    GPS
-========================= */
+========================================================= */
 
 function getLocation() {
 
   return new Promise(
-    (resolve) => {
+    resolve => {
 
       if (!navigator.geolocation) {
 
         resolve(null);
 
         return;
+
       }
 
 
@@ -971,32 +1248,34 @@ function getLocation() {
 
         },
 
-        () => {
+        error => {
+
+          console.warn(
+            "GPS:",
+            error
+          );
 
           resolve(null);
 
         },
 
         {
-
-          enableHighAccuracy:true,
-
-          timeout:15000,
-
-          maximumAge:0
-
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
 
       );
 
     }
   );
+
 }
 
 
-/* =========================
+/* =========================================================
    ENDEREÇO
-========================= */
+========================================================= */
 
 async function reverseGeocode(
   latitude,
@@ -1006,124 +1285,135 @@ async function reverseGeocode(
   try {
 
     const url =
-      `https://nominatim.openstreetmap.org/reverse` +
-      `?format=jsonv2` +
-      `&lat=${encodeURIComponent(latitude)}` +
-      `&lon=${encodeURIComponent(longitude)}` +
-      `&zoom=18` +
-      `&addressdetails=1`;
+      "https://nominatim.openstreetmap.org/reverse" +
+      `?lat=${latitude}` +
+      `&lon=${longitude}` +
+      "&format=json" +
+      "&zoom=18" +
+      "&addressdetails=1";
+
 
     const response =
-      await fetch(url);
+      await fetch(
+        url,
+        {
+          headers: {
+            "Accept":
+              "application/json"
+          }
+        }
+      );
+
 
     if (!response.ok) {
 
       return null;
+
     }
 
-    const data =
-      await response.json();
 
-    const a =
-      data.address || {};
-
-
-    return {
-
-      street:
-        a.road ||
-        a.pedestrian ||
-        "",
-
-      number:
-        a.house_number ||
-        "",
-
-      neighborhood:
-        a.neighbourhood ||
-        a.suburb ||
-        "",
-
-      city:
-        a.city ||
-        a.town ||
-        a.municipality ||
-        "",
-
-      state:
-        a.state ||
-        "",
-
-      cep:
-        a.postcode ||
-        "",
-
-      display:
-        data.display_name ||
-        ""
-
-    };
+    return await response.json();
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      "Erro no endereço:",
+      error
+    );
 
     return null;
+
   }
+
 }
 
 
-function formatAddress(
-  address
-) {
+function formatAddress(address) {
 
   if (!address) {
 
-    return "GPS obtido";
+    return "Localização obtida";
+
   }
 
-  const line1 =
-    [
-      address.street,
-      address.number
-    ]
-      .filter(Boolean)
-      .join(", ");
+
+  const a =
+    address.address || {};
 
 
-  const line2 =
-    [
-      address.neighborhood,
-      address.city
-    ]
-      .filter(Boolean)
-      .join(" • ");
+  const parts = [];
 
 
-  const line3 =
-    address.cep
-      ? `CEP ${address.cep}`
-      : "";
+  if (a.road) {
+
+    let road =
+      a.road;
+
+    if (a.house_number) {
+
+      road +=
+        ", " +
+        a.house_number;
+
+    }
+
+    parts.push(
+      road
+    );
+
+  }
 
 
-  return [
-    line1,
-    line2,
-    line3
-  ]
-    .filter(Boolean)
-    .join(" | ");
+  if (a.suburb) {
+
+    parts.push(
+      a.suburb
+    );
+
+  }
+
+
+  if (a.city ||
+      a.town ||
+      a.village) {
+
+    parts.push(
+      a.city ||
+      a.town ||
+      a.village
+    );
+
+  }
+
+
+  if (a.state) {
+
+    parts.push(
+      a.state
+    );
+
+  }
+
+
+  return (
+    parts.length
+      ? parts.join(" - ")
+      : address.display_name ||
+        "Localização obtida"
+  );
+
 }
 
 
-/* =========================
+/* =========================================================
    REGISTRAR PONTO
-========================= */
+========================================================= */
 
 async function punch() {
 
   const button =
     $("punchBtn");
+
 
   button.disabled = true;
 
@@ -1141,11 +1431,9 @@ async function punch() {
   if (location) {
 
     $("locationStatus").textContent =
-      `📍 GPS: ${
-        location.latitude.toFixed(5)
-      }, ${
-        location.longitude.toFixed(5)
-      }`;
+      `📍 GPS: ` +
+      `${location.latitude.toFixed(5)}, ` +
+      `${location.longitude.toFixed(5)}`;
 
 
     address =
@@ -1216,11 +1504,12 @@ async function punch() {
   const {
     data,
     error
-  } = await db
-    .from("punches")
-    .insert(payload)
-    .select()
-    .single();
+  } =
+    await db
+      .from("punches")
+      .insert(payload)
+      .select()
+      .single();
 
 
   if (error) {
@@ -1232,21 +1521,23 @@ async function punch() {
       error.message
     );
 
-    button.disabled =
-      false;
+
+    button.disabled = false;
 
     renderToday();
 
     return;
+
   }
 
 
   punches.push(data);
 
+
   renderToday();
 
-  button.disabled =
-    false;
+
+  button.disabled = false;
 
 
   $("locationStatus").textContent =
@@ -1257,74 +1548,155 @@ async function punch() {
 
 
   alert(
+
     punchType === "entry"
+
       ? "✅ Entrada registrada!"
+
       : "✅ Saída registrada!"
+
   );
+
 }
 
 
-/* =========================
+/* =========================================================
    LOGOUT
-========================= */
+========================================================= */
 
 async function logout() {
 
   await db.auth.signOut();
 
   location.reload();
+
 }
 
 
-/* =========================
-   SESSÃO / RECUPERAÇÃO
-========================= */
+/* =========================================================
+   INICIALIZAÇÃO
+========================================================= */
 
-async function loadCurrentSession() {
+async function start() {
 
   const {
-    data: {
-      session
-    }
-  } = await db.auth.getSession();
+    data,
+    error
+  } =
+    await db.auth.getSession();
 
 
-  if (!session) {
+  if (error) {
+
+    console.error(error);
 
     showLogin();
 
     return;
+
   }
 
 
-  await loadEmployee(
-    session.user.id
-  );
+  /*
+    Detecta recuperação de senha
+  */
+
+  const hash =
+    window.location.hash || "";
+
+
+  const search =
+    window.location.search || "";
+
+
+  const isRecovery =
+    hash.includes(
+      "type=recovery"
+    ) ||
+    search.includes(
+      "type=recovery"
+    );
+
+
+  if (
+    isRecovery &&
+    data?.session
+  ) {
+
+    showUpdatePassword();
+
+    return;
+
+  }
+
+
+  if (data?.session?.user) {
+
+    await loadEmployee(
+      data.session.user.id
+    );
+
+    return;
+
+  }
+
+
+  showLogin();
+
 }
 
 
-/* =========================
-   INICIALIZAÇÃO
-========================= */
-
-/*
- * IMPORTANTE:
- * O listener precisa ser registrado
- * ANTES do start(), porque no fluxo
- * de recuperação o Supabase pode
- * entregar a sessão através do evento
- * PASSWORD_RECOVERY.
- */
+/* =========================================================
+   LISTENER DE AUTENTICAÇÃO
+========================================================= */
 
 db.auth.onAuthStateChange(
-  (event, session) => {
+  async (
+    event,
+    session
+  ) => {
+
+    console.log(
+      "Auth event:",
+      event
+    );
+
 
     if (
-      event === "PASSWORD_RECOVERY" &&
-      session
+      event ===
+      "PASSWORD_RECOVERY"
     ) {
 
       showUpdatePassword();
+
+      return;
+
+    }
+
+
+    if (
+      event === "SIGNED_IN" &&
+      session?.user
+    ) {
+
+      /*
+        Não recarrega a tela durante
+        recuperação de senha.
+      */
+
+      const hash =
+        window.location.hash || "";
+
+
+      if (
+        hash.includes(
+          "type=recovery"
+        )
+      ) {
+
+        return;
+
+      }
 
     }
 
@@ -1332,65 +1704,8 @@ db.auth.onAuthStateChange(
 );
 
 
-async function start() {
-
-  /*
-   * O Supabase pode devolver o tipo
-   * recovery pela hash ou pela query.
-   */
-
-  const recoveryInUrl =
-    window.location.hash.includes(
-      "type=recovery"
-    ) ||
-    new URLSearchParams(
-      window.location.search
-    ).get("type") === "recovery";
-
-
-  const {
-    data: {
-      session
-    }
-  } = await db.auth.getSession();
-
-
-  if (recoveryInUrl) {
-
-    /*
-     * Se a sessão de recuperação já
-     * estiver disponível, mostra
-     * imediatamente a tela de nova senha.
-     */
-
-    if (session) {
-
-      showUpdatePassword();
-
-    }
-
-    /*
-     * Se ainda não houver sessão,
-     * aguardamos o evento
-     * PASSWORD_RECOVERY.
-     */
-
-    return;
-  }
-
-
-  if (session) {
-
-    await loadEmployee(
-      session.user.id
-    );
-
-    return;
-  }
-
-
-  showLogin();
-}
-
+/* =========================================================
+   INICIAR APLICAÇÃO
+========================================================= */
 
 start();
