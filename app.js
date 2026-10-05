@@ -12,6 +12,32 @@ let punches = [];
 
 
 /* =========================================================
+   CONFIGURAÇÃO DA JORNADA
+========================================================= */
+
+// 7h20 de trabalho efetivo
+const DAILY_WORK_HOURS = 7;
+const DAILY_WORK_MINUTES = 20;
+
+const DAILY_WORK_MS =
+  (
+    DAILY_WORK_HOURS * 60 +
+    DAILY_WORK_MINUTES
+  ) *
+  60 *
+  1000;
+
+// 1 hora de intervalo
+const MEAL_BREAK_MS =
+  60 *
+  60 *
+  1000;
+
+// Máximo de 4 marcações por dia
+const MAX_DAILY_PUNCHES = 4;
+
+
+/* =========================================================
    UTILITÁRIOS
 ========================================================= */
 
@@ -29,6 +55,7 @@ function todayKey() {
     String(d.getMonth() + 1).padStart(2, "0"),
     String(d.getDate()).padStart(2, "0")
   ].join("-");
+
 }
 
 
@@ -41,6 +68,7 @@ function localDateKey(timestamp) {
     String(d.getMonth() + 1).padStart(2, "0"),
     String(d.getDate()).padStart(2, "0")
   ].join("-");
+
 }
 
 
@@ -549,8 +577,6 @@ function renderApp() {
         "
       >
 
-        <!-- BOAS-VINDAS -->
-
         <section
           class="welcome"
           style="
@@ -566,8 +592,6 @@ function renderApp() {
             ${fmtDate()}
           </p>
 
-          <!-- RELÓGIO -->
-
           <div
             id="clock"
             class="clock"
@@ -582,8 +606,6 @@ function renderApp() {
             --:--:--
           </div>
 
-
-          <!-- LOCALIZAÇÃO -->
 
           <div
             id="locationStatus"
@@ -602,8 +624,6 @@ function renderApp() {
         </section>
 
 
-        <!-- STATUS -->
-
         <div
           id="todayStatus"
           style="
@@ -617,8 +637,6 @@ function renderApp() {
           Você está fora
         </div>
 
-
-        <!-- BOTÃO PRINCIPAL -->
 
         <button
           id="punchBtn"
@@ -641,8 +659,6 @@ function renderApp() {
           🟢 REGISTRAR ENTRADA
         </button>
 
-
-        <!-- BANCO DE HORAS -->
 
         <div
           class="card"
@@ -718,15 +734,14 @@ function renderApp() {
           >
 
             Jornada prevista:
-            <strong>08:00</strong>
-            por dia
+            <strong>07:20</strong>
+            de trabalho + <strong>01:00</strong>
+            de intervalo
 
           </div>
 
         </div>
 
-
-        <!-- BOTÃO ESPELHO -->
 
         <button
           onclick="openTimesheet()"
@@ -760,8 +775,6 @@ function renderApp() {
 
         </button>
 
-
-        <!-- JORNADA DE HOJE -->
 
         <section
           class="card"
@@ -979,11 +992,9 @@ function calculateBankHours() {
     });
 
 
+  // Jornada efetiva: 7h20
   const dailyExpected =
-    8 *
-    60 *
-    60 *
-    1000;
+    DAILY_WORK_MS;
 
 
   let accumulated = 0;
@@ -1138,20 +1149,58 @@ function renderToday() {
       : "#555";
 
 
-  button.innerHTML =
-    working
-      ? "🔴 REGISTRAR SAÍDA"
-      : "🟢 REGISTRAR ENTRADA";
+  // Após a 4ª marcação, a jornada está encerrada
+  if (
+    list.length >=
+    MAX_DAILY_PUNCHES
+  ) {
+
+    status.textContent =
+      "🔒 Jornada encerrada";
 
 
-  button.style.background =
-    working
-      ? "#c0392b"
-      : "#163b5c";
+    status.style.color =
+      "#555";
 
 
-  button.style.color =
-    "#fff";
+    button.innerHTML =
+      "🔒 JORNADA ENCERRADA";
+
+
+    button.style.background =
+      "#777";
+
+
+    button.style.color =
+      "#fff";
+
+
+    button.disabled =
+      true;
+
+
+  } else {
+
+    button.disabled =
+      false;
+
+
+    button.innerHTML =
+      working
+        ? "🔴 REGISTRAR SAÍDA"
+        : "🟢 REGISTRAR ENTRADA";
+
+
+    button.style.background =
+      working
+        ? "#c0392b"
+        : "#163b5c";
+
+
+    button.style.color =
+      "#fff";
+
+  }
 
 
   if (list.length === 0) {
@@ -1454,10 +1503,7 @@ function openTimesheet() {
     if (dayPunches.length > 0) {
 
       monthlyExpected +=
-        8 *
-        60 *
-        60 *
-        1000;
+        DAILY_WORK_MS;
 
       monthlyWorked +=
         worked;
@@ -1469,10 +1515,7 @@ function openTimesheet() {
       worked -
       (
         dayPunches.length > 0
-          ? 8 *
-            60 *
-            60 *
-            1000
+          ? DAILY_WORK_MS
           : 0
       );
 
@@ -2134,6 +2177,115 @@ async function punch() {
     $("punchBtn");
 
 
+  const list =
+    todayPunchList();
+
+
+  /* -------------------------------------------------------
+     REGRA 1 — MÁXIMO DE 4 MARCAÇÕES
+  ------------------------------------------------------- */
+
+  if (
+    list.length >=
+    MAX_DAILY_PUNCHES
+  ) {
+
+    alert(
+      "🔒 Jornada encerrada.\n\n" +
+      "Você já realizou as 4 marcações previstas para hoje."
+    );
+
+    renderToday();
+
+    return;
+
+  }
+
+
+  /* -------------------------------------------------------
+     REGRA 2 — AVISO SE A MARCAÇÃO ANTERIOR FOI HÁ
+     MENOS DE 1 HORA
+  ------------------------------------------------------- */
+
+  if (list.length > 0) {
+
+    const lastPunch =
+      list[list.length - 1];
+
+
+    const lastTime =
+      new Date(
+        lastPunch.timestamp
+      ).getTime();
+
+
+    const nowTime =
+      Date.now();
+
+
+    const elapsed =
+      nowTime -
+      lastTime;
+
+
+    if (
+      elapsed >= 0 &&
+      elapsed < MEAL_BREAK_MS
+    ) {
+
+      const elapsedMinutes =
+        Math.floor(
+          elapsed / 60000
+        );
+
+
+      const timeText =
+        elapsedMinutes <= 0
+          ? "menos de 1 minuto"
+          : `${elapsedMinutes} ${
+              elapsedMinutes === 1
+                ? "minuto"
+                : "minutos"
+            }`;
+
+
+      const confirmed =
+        confirm(
+          "⚠️ ATENÇÃO\n\n" +
+          `Você realizou sua última marcação há ${timeText}.\n\n` +
+          "O intervalo previsto é de 1 hora.\n\n" +
+          "Deseja realmente registrar uma nova marcação agora?"
+        );
+
+
+      if (!confirmed) {
+
+        const locationStatus =
+          $("locationStatus");
+
+        if (locationStatus) {
+
+          locationStatus.textContent =
+            "📍 Aguardando localização...";
+
+        }
+
+
+        renderToday();
+
+        return;
+
+      }
+
+    }
+
+  }
+
+
+  /* -------------------------------------------------------
+     OBTENDO LOCALIZAÇÃO
+  ------------------------------------------------------- */
+
   button.disabled = true;
 
   button.textContent =
@@ -2178,9 +2330,9 @@ async function punch() {
   }
 
 
-  const list =
-    todayPunchList();
-
+  /* -------------------------------------------------------
+     TIPO DA MARCAÇÃO
+  ------------------------------------------------------- */
 
   const punchType =
     list.length % 2 === 0
