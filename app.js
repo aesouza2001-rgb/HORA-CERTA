@@ -1,129 +1,691 @@
-const KEY="horaCertaMVP";
-const defaultState={people:[{id:"p1",name:"Minha Família"}],current:"p1",target:480, punches:[]};
-let state=JSON.parse(localStorage.getItem(KEY)||"null")||defaultState;
-const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
-const pad=n=>String(n).padStart(2,"0");
-const fmtMin=m=>{let sign=m<0?"-":"",v=Math.abs(Math.round(m));return sign+pad(Math.floor(v/60))+":"+pad(v%60)};
-const todayKey=()=>{let d=new Date();return d.toISOString().slice(0,10)};
-const todayPunches=()=>state.punches.filter(p=>p.personId===state.current&&p.date===todayKey()).sort((a,b)=>a.ts-b.ts);
-function calcDay(ps){
-  let total=0;
-  for(let i=0;i+1<ps.length;i+=2) total+=(ps[i+1].ts-ps[i].ts)/60000;
-  return Math.round(total);
+const SUPABASE_URL = "https://kmngoqtintgjgujsznib.supabase.co";
+const SUPABASE_KEY = "sb_publishable_BwJkMJuIlL8jroYtQO1OqA_kz_DruZG";
+
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+let employee = null;
+let company = null;
+let punches = [];
+
+const $ = (id) => document.getElementById(id);
+
+function todayKey() {
+  const d = new Date();
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0")
+  ].join("-");
 }
-function allPeople(){return state.people}
-function bankFor(personId){
-  let by={};
-  state.punches.filter(p=>p.personId===personId).forEach(p=>(by[p.date]??=[]).push(p));
-  return Object.values(by).reduce((s,ps)=>s+calcDay(ps)-state.target,0);
+
+function fmtTime(date) {
+  return new Date(date).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
 }
-function currentPerson(){return state.people.find(p=>p.id===state.current)||state.people[0]}
-function render(){
-  document.getElementById("currentName").textContent=currentPerson()?.name||"Família";
-  document.getElementById("today").textContent=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});
-  const ps=todayPunches(), worked=calcDay(ps), bal=worked-state.target;
-  document.getElementById("todayBalance").textContent=fmtMin(bal);
-  document.getElementById("todayBalance").className=bal<0?"negative":"positive";
-  const bank=bankFor(state.current);
-  document.getElementById("bankBalance").textContent=fmtMin(bank);
-  document.getElementById("bankBalance").className=bank<0?"negative":"positive";
-  const tl=document.getElementById("todayPunches"); tl.innerHTML="";
-  ps.forEach((p,i)=>{let div=document.createElement("div");div.className="item";div.innerHTML=`<span>${i%2===0?"Entrada":"Saída/intervalo"}</span><strong>${new Date(p.ts).toLocaleTimeString("pt-BR")}</strong>`;tl.appendChild(div)});
-  const last=ps[ps.length-1];
-  document.getElementById("punchBtn").textContent=last&&ps.length%2===1?"REGISTRAR SAÍDA / INTERVALO":"REGISTRAR PONTO";
-  document.getElementById("locationStatus").textContent=last?.location?(last.address?`📍 ${formatAddress(last.address)}`:`📍 GPS: ${last.location.lat.toFixed(5)}, ${last.location.lng.toFixed(5)}`):"📍 Localização será solicitada no registro";
-  renderHistory(); renderAdmin();
+
+function fmtDate(date) {
+  return new Date(date).toLocaleDateString("pt-BR");
 }
-async function reverseGeocode(lat,lng){
-  try{
-    const url=`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=18&addressdetails=1`;
-    const res=await fetch(url,{headers:{"Accept":"application/json"}});
-    if(!res.ok) throw new Error("geocode");
-    const data=await res.json();
-    const a=data.address||{};
+
+function showLogin() {
+  document.body.innerHTML = `
+    <div style="
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:#f4f7fa;
+      font-family:Arial,sans-serif;
+    ">
+      <div style="
+        width:100%;
+        max-width:400px;
+        background:white;
+        padding:30px;
+        border-radius:18px;
+        box-shadow:0 10px 30px rgba(0,0,0,.08);
+      ">
+        <div style="
+          text-align:center;
+          font-size:28px;
+          font-weight:800;
+          color:#163b5c;
+          margin-bottom:8px;
+        ">
+          HORA CERTA
+        </div>
+
+        <div style="
+          text-align:center;
+          color:#666;
+          margin-bottom:25px;
+        ">
+          Seu ponto. Sua jornada. Seu controle.
+        </div>
+
+        <label style="display:block;margin-bottom:6px;font-weight:600">
+          E-mail
+        </label>
+
+        <input
+          id="loginEmail"
+          type="email"
+          placeholder="seu@email.com"
+          style="
+            width:100%;
+            box-sizing:border-box;
+            padding:13px;
+            border:1px solid #ddd;
+            border-radius:10px;
+            margin-bottom:15px;
+          "
+        >
+
+        <label style="display:block;margin-bottom:6px;font-weight:600">
+          Senha
+        </label>
+
+        <input
+          id="loginPassword"
+          type="password"
+          placeholder="Sua senha"
+          style="
+            width:100%;
+            box-sizing:border-box;
+            padding:13px;
+            border:1px solid #ddd;
+            border-radius:10px;
+            margin-bottom:18px;
+          "
+        >
+
+        <button
+          id="loginBtn"
+          style="
+            width:100%;
+            padding:14px;
+            border:0;
+            border-radius:10px;
+            background:#163b5c;
+            color:white;
+            font-size:16px;
+            font-weight:700;
+            cursor:pointer;
+          "
+        >
+          ENTRAR
+        </button>
+
+        <div
+          id="loginMessage"
+          style="
+            margin-top:15px;
+            text-align:center;
+            color:#c0392b;
+            min-height:20px;
+          "
+        ></div>
+      </div>
+    </div>
+  `;
+
+  $("loginBtn").onclick = login;
+}
+
+async function login() {
+  const email = $("loginEmail").value.trim();
+  const password = $("loginPassword").value;
+
+  if (!email || !password) {
+    $("loginMessage").textContent =
+      "Digite seu e-mail e sua senha.";
+    return;
+  }
+
+  $("loginBtn").disabled = true;
+  $("loginBtn").textContent = "ENTRANDO...";
+  $("loginMessage").textContent = "";
+
+  const { data, error } =
+    await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+  if (error) {
+    $("loginMessage").textContent =
+      "Não foi possível entrar: " + error.message;
+
+    $("loginBtn").disabled = false;
+    $("loginBtn").textContent = "ENTRAR";
+    return;
+  }
+
+  await loadEmployee(data.user.id);
+}
+
+async function loadEmployee(userId) {
+  const { data, error } = await db
+    .from("employees")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("active", true)
+    .single();
+
+  if (error || !data) {
+    await db.auth.signOut();
+
+    document.body.innerHTML = `
+      <div style="
+        padding:40px;
+        font-family:Arial,sans-serif;
+        text-align:center;
+      ">
+        <h2>Funcionário não encontrado</h2>
+        <p>
+          O usuário entrou, mas ainda não está vinculado
+          a um funcionário ativo.
+        </p>
+        <button onclick="location.reload()">
+          Voltar
+        </button>
+      </div>
+    `;
+
+    return;
+  }
+
+  employee = data;
+
+  await loadCompany();
+  await loadPunches();
+
+  renderApp();
+}
+
+async function loadCompany() {
+  const { data, error } = await db
+    .from("companies")
+    .select("*")
+    .eq("id", employee.company_id)
+    .single();
+
+  if (!error) {
+    company = data;
+  }
+}
+
+async function loadPunches() {
+  const { data, error } = await db
+    .from("punches")
+    .select("*")
+    .eq("employee_id", employee.id)
+    .order("timestamp", { ascending: true });
+
+  if (!error) {
+    punches = data || [];
+  } else {
+    console.error(error);
+    punches = [];
+  }
+}
+
+function renderApp() {
+  document.body.innerHTML = `
+    <div id="app">
+
+      <header style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:18px;
+      ">
+        <div>
+          <div class="brand">HORA CERTA</div>
+          <div class="sub">
+            ${company?.name || "Empresa"}
+          </div>
+        </div>
+
+        <button id="logoutBtn" class="ghost">
+          Sair
+        </button>
+      </header>
+
+      <main>
+
+        <section class="screen active">
+
+          <div class="hello">
+            Olá, <span>${employee.name}</span> 👋
+          </div>
+
+          <div class="date">
+            ${new Date().toLocaleDateString("pt-BR", {
+              weekday:"long",
+              day:"2-digit",
+              month:"long",
+              year:"numeric"
+            })}
+          </div>
+
+          <div class="clock" id="clock">
+            --:--:--
+          </div>
+
+          <div class="card punch-card">
+
+            <div
+              class="location"
+              id="locationStatus"
+            >
+              📍 Localização será solicitada
+            </div>
+
+            <button
+              id="punchBtn"
+              class="punch"
+            >
+              REGISTRAR PONTO
+            </button>
+
+            <div class="hint">
+              O registro salva data, hora e localização.
+            </div>
+
+          </div>
+
+          <div class="grid2">
+
+            <div class="stat">
+              <span>Registros hoje</span>
+              <strong id="todayCount">0</strong>
+            </div>
+
+            <div class="stat">
+              <span>Status</span>
+              <strong id="statusText">
+                Fora
+              </strong>
+            </div>
+
+          </div>
+
+          <div class="card">
+
+            <h3>Jornada de hoje</h3>
+
+            <div
+              id="todayPunches"
+              class="timeline"
+            ></div>
+
+          </div>
+
+        </section>
+
+      </main>
+
+    </div>
+  `;
+
+  $("logoutBtn").onclick = logout;
+  $("punchBtn").onclick = punch;
+
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  renderToday();
+}
+
+function updateClock() {
+  const clock = $("clock");
+
+  if (clock) {
+    clock.textContent =
+      new Date().toLocaleTimeString("pt-BR");
+  }
+}
+
+function todayPunchList() {
+  return punches.filter(p => {
+    return String(p.timestamp).slice(0,10) === todayKey();
+  });
+}
+
+function renderToday() {
+  const list = todayPunchList();
+
+  $("todayCount").textContent = list.length;
+
+  const working = list.length % 2 === 1;
+
+  $("statusText").textContent =
+    working ? "Trabalhando" : "Fora";
+
+  $("punchBtn").textContent =
+    working
+      ? "REGISTRAR SAÍDA"
+      : "REGISTRAR ENTRADA";
+
+  const container = $("todayPunches");
+
+  container.innerHTML = "";
+
+  if (!list.length) {
+    container.innerHTML =
+      `<div class="muted">
+        Nenhum registro hoje.
+      </div>`;
+    return;
+  }
+
+  list.forEach((p, index) => {
+
+    const div = document.createElement("div");
+
+    div.className = "item";
+
+    div.innerHTML = `
+      <span>
+        ${index % 2 === 0
+          ? "Entrada"
+          : "Saída / intervalo"}
+      </span>
+
+      <strong>
+        ${fmtTime(p.timestamp)}
+      </strong>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+function getLocation() {
+  return new Promise((resolve) => {
+
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+
+      position => {
+
+        resolve({
+          latitude:
+            position.coords.latitude,
+
+          longitude:
+            position.coords.longitude,
+
+          accuracy:
+            position.coords.accuracy
+        });
+
+      },
+
+      () => {
+        resolve(null);
+      },
+
+      {
+        enableHighAccuracy:true,
+        timeout:15000,
+        maximumAge:0
+      }
+
+    );
+
+  });
+}
+
+async function reverseGeocode(latitude, longitude) {
+
+  try {
+
+    const url =
+      `https://nominatim.openstreetmap.org/reverse` +
+      `?format=jsonv2` +
+      `&lat=${encodeURIComponent(latitude)}` +
+      `&lon=${encodeURIComponent(longitude)}` +
+      `&zoom=18` +
+      `&addressdetails=1`;
+
+    const response =
+      await fetch(url);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data =
+      await response.json();
+
+    const a = data.address || {};
+
     return {
-      street:a.road||a.pedestrian||a.footway||"",
-      number:a.house_number||"",
-      neighborhood:a.neighbourhood||a.suburb||a.quarter||"",
-      city:a.city||a.town||a.municipality||"",
-      state:a.state||"",
-      cep:a.postcode||"",
-      display:data.display_name||""
+
+      street:
+        a.road ||
+        a.pedestrian ||
+        "",
+
+      number:
+        a.house_number ||
+        "",
+
+      neighborhood:
+        a.neighbourhood ||
+        a.suburb ||
+        "",
+
+      city:
+        a.city ||
+        a.town ||
+        a.municipality ||
+        "",
+
+      state:
+        a.state ||
+        "",
+
+      cep:
+        a.postcode ||
+        "",
+
+      display:
+        data.display_name ||
+        ""
+
     };
-  }catch(e){
+
+  } catch (error) {
+
+    console.error(error);
+
     return null;
   }
 }
 
-function formatAddress(addr){
-  if(!addr) return "Localização obtida, mas endereço não identificado";
-  const line1=[addr.street,addr.number].filter(Boolean).join(", ");
-  const line2=[addr.neighborhood,addr.city].filter(Boolean).join(" • ");
-  const line3=addr.cep ? `CEP ${addr.cep}` : "";
-  return [line1,line2,line3].filter(Boolean).join(" | ") || addr.display || "Endereço não identificado";
+function formatAddress(address) {
+
+  if (!address) {
+    return "GPS obtido";
+  }
+
+  const line1 =
+    [address.street, address.number]
+      .filter(Boolean)
+      .join(", ");
+
+  const line2 =
+    [address.neighborhood, address.city]
+      .filter(Boolean)
+      .join(" • ");
+
+  const line3 =
+    address.cep
+      ? `CEP ${address.cep}`
+      : "";
+
+  return [line1,line2,line3]
+    .filter(Boolean)
+    .join(" | ");
 }
 
-async function punch(){
-  const btn=document.getElementById("punchBtn");
-  btn.disabled=true;
-  btn.textContent="OBTENDO LOCALIZAÇÃO...";
+async function punch() {
 
-  const add=async (loc)=>{
-    let address=null;
-    if(loc) address=await reverseGeocode(loc.lat,loc.lng);
-    state.punches.push({
-      id:crypto.randomUUID(),
-      personId:state.current,
-      date:todayKey(),
-      ts:Date.now(),
-      location:loc,
-      address:address
-    });
-    save();
-    render();
-    btn.disabled=false;
+  const button = $("punchBtn");
+
+  button.disabled = true;
+  button.textContent =
+    "OBTENDO LOCALIZAÇÃO...";
+
+  const location =
+    await getLocation();
+
+  let address = null;
+
+  if (location) {
+
+    $("locationStatus").textContent =
+      `📍 GPS: ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
+
+    address =
+      await reverseGeocode(
+        location.latitude,
+        location.longitude
+      );
+
+    if (address) {
+
+      $("locationStatus").textContent =
+        "📍 " + formatAddress(address);
+
+    }
+
+  } else {
+
+    $("locationStatus").textContent =
+      "⚠️ GPS não disponível";
+
+  }
+
+  const list = todayPunchList();
+
+  const punchType =
+    list.length % 2 === 0
+      ? "entry"
+      : "exit";
+
+  const timestamp =
+    new Date().toISOString();
+
+  const payload = {
+
+    company_id:
+      employee.company_id,
+
+    employee_id:
+      employee.id,
+
+    punch_type:
+      punchType,
+
+    timestamp:
+
+      timestamp,
+
+    latitude:
+      location?.latitude ?? null,
+
+    longitude:
+      location?.longitude ?? null,
+
+    accuracy:
+      location?.accuracy ?? null,
+
+    address:
+      address?.display ?? null
+
   };
 
-  if(!navigator.geolocation){
-    await add(null);
+  const { data, error } =
+    await db
+      .from("punches")
+      .insert(payload)
+      .select()
+      .single();
+
+  if (error) {
+
+    console.error(error);
+
+    alert(
+      "Não foi possível registrar o ponto.\n\n" +
+      error.message
+    );
+
+    button.disabled = false;
+
+    renderToday();
+
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(
-    pos=>add({
-      lat:pos.coords.latitude,
-      lng:pos.coords.longitude,
-      accuracy:pos.coords.accuracy
-    }),
-    async ()=>{
-      await add(null);
-      alert("Não foi possível obter o GPS. O registro foi salvo sem localização.");
-    },
-    {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+  punches.push(data);
+
+  renderToday();
+
+  button.disabled = false;
+
+  $("locationStatus").textContent =
+    location
+      ? "📍 " + formatAddress(address)
+      : "⚠️ Registrado sem GPS";
+
+  alert(
+    punchType === "entry"
+      ? "✅ Entrada registrada!"
+      : "✅ Saída registrada!"
   );
 }
-function renderHistory(){
-  const by={}; state.punches.filter(p=>p.personId===state.current).forEach(p=>(by[p.date]??=[]).push(p));
-  const el=document.getElementById("historyList"); el.innerHTML="";
-  Object.keys(by).sort().reverse().forEach(date=>{let mins=calcDay(by[date]);let bal=mins-state.target;let d=document.createElement("div");d.className="person";d.innerHTML=`<div><strong>${new Date(date+"T12:00:00").toLocaleDateString("pt-BR")}</strong><div class="muted">Trabalhado ${fmtMin(mins)}</div></div><strong class="${bal<0?"negative":"positive"}">${fmtMin(bal)}</strong>`;el.appendChild(d)});
-  if(!el.children.length) el.innerHTML='<div class="muted">Nenhum registro ainda.</div>';
+
+async function logout() {
+
+  await db.auth.signOut();
+
+  location.reload();
 }
-function renderAdmin(){
-  document.getElementById("peopleCount").textContent=state.people.length;
-  const work=state.people.filter(p=>{let ps=state.punches.filter(x=>x.personId===p.id&&x.date===todayKey());return ps.length%2===1}).length;
-  document.getElementById("workingCount").textContent=work;
-  let total=state.people.reduce((s,p)=>s+bankFor(p.id),0);
-  document.getElementById("adminBalance").textContent=fmtMin(total);
-  document.getElementById("extraTotal").textContent=fmtMin(Math.max(0,total));
-  const el=document.getElementById("peopleList");el.innerHTML="";
-  state.people.forEach(p=>{let row=document.createElement("div");row.className="person";row.innerHTML=`<span>${p.name}</span><span><button onclick="selectPerson('${p.id}')">Selecionar</button> <button onclick="removePerson('${p.id}')">Excluir</button></span>`;el.appendChild(row)});
+
+async function start() {
+
+  const {
+    data: {
+      session
+    }
+  } = await db.auth.getSession();
+
+  if (!session) {
+
+    showLogin();
+
+    return;
+  }
+
+  await loadEmployee(
+    session.user.id
+  );
 }
-window.selectPerson=id=>{state.current=id;save();show("home");render()};
-window.removePerson=id=>{if(state.people.length===1)return alert("Mantenha pelo menos uma pessoa.");state.people=state.people.filter(p=>p.id!==id);state.punches=state.punches.filter(p=>p.personId!==id);if(state.current===id)state.current=state.people[0].id;save();render()};
-function show(id){document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById(id).classList.add("active");document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.screen===id))}
-document.querySelectorAll(".nav").forEach(n=>n.onclick=()=>show(n.dataset.screen));
-document.getElementById("punchBtn").onclick=punch;
-document.getElementById("addPerson").onclick=()=>{let n=document.getElementById("newName").value.trim();if(!n)return;state.people.push({id:crypto.randomUUID(),name:n});document.getElementById("newName").value="";save();render()};
-document.getElementById("resetBtn").onclick=()=>{if(confirm("Apagar todos os dados deste teste?")){localStorage.removeItem(KEY);location.reload()}};
-setInterval(()=>document.getElementById("clock").textContent=new Date().toLocaleTimeString("pt-BR"),1000);
-render();
+
+start();
