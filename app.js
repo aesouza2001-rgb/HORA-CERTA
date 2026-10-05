@@ -1307,13 +1307,46 @@ async function loadCurrentSession() {
    INICIALIZAÇÃO
 ========================= */
 
+/*
+ * IMPORTANTE:
+ * O listener precisa ser registrado
+ * ANTES do start(), porque no fluxo
+ * de recuperação o Supabase pode
+ * entregar a sessão através do evento
+ * PASSWORD_RECOVERY.
+ */
+
+db.auth.onAuthStateChange(
+  (event, session) => {
+
+    if (
+      event === "PASSWORD_RECOVERY" &&
+      session
+    ) {
+
+      showUpdatePassword();
+
+    }
+
+  }
+);
+
+
 async function start() {
 
   /*
-   * Se o usuário acabou de clicar
-   * no link de recuperação, o Supabase
-   * cria uma sessão temporária.
+   * O Supabase pode devolver o tipo
+   * recovery pela hash ou pela query.
    */
+
+  const recoveryInUrl =
+    window.location.hash.includes(
+      "type=recovery"
+    ) ||
+    new URLSearchParams(
+      window.location.search
+    ).get("type") === "recovery";
+
 
   const {
     data: {
@@ -1322,25 +1355,31 @@ async function start() {
   } = await db.auth.getSession();
 
 
-  if (session) {
+  if (recoveryInUrl) {
 
     /*
-     * Se chegou aqui através do fluxo
-     * de recuperação, mostramos a tela
-     * de nova senha.
+     * Se a sessão de recuperação já
+     * estiver disponível, mostra
+     * imediatamente a tela de nova senha.
      */
 
-    if (
-      window.location.hash.includes(
-        "type=recovery"
-      )
-    ) {
+    if (session) {
 
       showUpdatePassword();
 
-      return;
     }
 
+    /*
+     * Se ainda não houver sessão,
+     * aguardamos o evento
+     * PASSWORD_RECOVERY.
+     */
+
+    return;
+  }
+
+
+  if (session) {
 
     await loadEmployee(
       session.user.id
@@ -1352,27 +1391,6 @@ async function start() {
 
   showLogin();
 }
-
-
-/*
- * Detecta mudanças de autenticação.
- * Isso ajuda o Supabase a entregar
- * corretamente a sessão de recuperação.
- */
-
-db.auth.onAuthStateChange(
-  async (event, session) => {
-
-    if (
-      event === "PASSWORD_RECOVERY"
-    ) {
-
-      showUpdatePassword();
-
-    }
-
-  }
-);
 
 
 start();
