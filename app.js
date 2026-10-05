@@ -687,7 +687,42 @@ function renderApp() {
         </div>
 
 
-        <!-- JORNADA -->
+        <!-- BOTÃO ESPELHO -->
+
+        <button
+          onclick="openTimesheet()"
+          style="
+            width:100%;
+            margin-top:16px;
+            padding:18px;
+            border:none;
+            border-radius:14px;
+            background:#163b5c;
+            color:white;
+            font-size:16px;
+            font-weight:700;
+            cursor:pointer;
+            box-shadow:0 5px 15px rgba(0,0,0,.12);
+          "
+        >
+
+          📋 MEU ESPELHO DE PONTO
+
+          <div
+            style="
+              font-size:12px;
+              font-weight:400;
+              margin-top:5px;
+              opacity:.85;
+            "
+          >
+            Consultar jornada do mês atual
+          </div>
+
+        </button>
+
+
+        <!-- JORNADA DE HOJE -->
 
         <section class="card">
 
@@ -832,20 +867,6 @@ function formatWorked(ms) {
 }
 
 
-/*
-  Calcula o tempo efetivamente trabalhado.
-
-  Exemplo:
-
-  Entrada       08:00
-  Saída almoço  12:00
-  Retorno       13:00
-  Saída         17:00
-
-  Resultado:
-  4h + 4h = 8h
-*/
-
 function workedMilliseconds(list) {
 
   let total = 0;
@@ -913,11 +934,6 @@ function calculateBankHours() {
 
     });
 
-
-  /*
-    Jornada padrão:
-    8 horas por dia
-  */
 
   const dailyExpected =
     8 *
@@ -1017,11 +1033,6 @@ function renderBankHours() {
     );
 
 
-  /*
-    Verde = positivo
-    Vermelho = negativo
-  */
-
   balance.style.color =
     bank.accumulated >= 0
       ? "#198754"
@@ -1059,10 +1070,12 @@ function renderToday() {
     $("todayPunches");
 
 
-  if (!count ||
-      !status ||
-      !button ||
-      !container) {
+  if (
+    !count ||
+    !status ||
+    !button ||
+    !container
+  ) {
 
     return;
 
@@ -1072,11 +1085,6 @@ function renderToday() {
   count.textContent =
     list.length;
 
-
-  /*
-    Número ímpar de registros:
-    funcionário está trabalhando.
-  */
 
   const working =
     list.length % 2 === 1;
@@ -1207,6 +1215,696 @@ function renderToday() {
 
 
   renderBankHours();
+
+}
+
+
+/* =========================================================
+   ESPELHO DE PONTO
+========================================================= */
+
+function getCurrentMonthPunches() {
+
+  const now =
+    new Date();
+
+  const year =
+    now.getFullYear();
+
+  const month =
+    now.getMonth();
+
+
+  return punches
+    .filter(p => {
+
+      const d =
+        new Date(
+          p.timestamp
+        );
+
+      return (
+        d.getFullYear() === year &&
+        d.getMonth() === month
+      );
+
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.timestamp) -
+        new Date(b.timestamp)
+    );
+
+}
+
+
+function groupPunchesByDay(list) {
+
+  const groups = {};
+
+
+  list.forEach(p => {
+
+    const key =
+      localDateKey(
+        p.timestamp
+      );
+
+
+    if (!groups[key]) {
+
+      groups[key] = [];
+
+    }
+
+
+    groups[key].push(p);
+
+  });
+
+
+  return groups;
+
+}
+
+
+function monthName(date) {
+
+  return date.toLocaleDateString(
+    "pt-BR",
+    {
+      month: "long",
+      year: "numeric"
+    }
+  );
+
+}
+
+
+function formatDayName(date) {
+
+  return date.toLocaleDateString(
+    "pt-BR",
+    {
+      weekday: "long"
+    }
+  );
+
+}
+
+
+function formatDayNumber(date) {
+
+  return String(
+    date.getDate()
+  ).padStart(2, "0");
+
+}
+
+
+function openTimesheet() {
+
+  const monthPunches =
+    getCurrentMonthPunches();
+
+
+  const groups =
+    groupPunchesByDay(
+      monthPunches
+    );
+
+
+  const now =
+    new Date();
+
+
+  const year =
+    now.getFullYear();
+
+  const month =
+    now.getMonth();
+
+
+  /*
+    Primeiro e último dia do mês atual.
+  */
+
+  const firstDay =
+    new Date(
+      year,
+      month,
+      1
+    );
+
+
+  const lastDay =
+    new Date(
+      year,
+      month + 1,
+      0
+    );
+
+
+  let monthlyWorked =
+    0;
+
+
+  let monthlyExpected =
+    0;
+
+
+  let rows = "";
+
+
+  for (
+    let day = 1;
+    day <= lastDay.getDate();
+    day++
+  ) {
+
+    const date =
+      new Date(
+        year,
+        month,
+        day
+      );
+
+
+    /*
+      Não mostra dias futuros.
+    */
+
+    if (date > now) {
+
+      break;
+
+    }
+
+
+    const key =
+      [
+        year,
+        String(month + 1)
+          .padStart(2, "0"),
+        String(day)
+          .padStart(2, "0")
+      ].join("-");
+
+
+    const dayPunches =
+      groups[key] || [];
+
+
+    const worked =
+      workedMilliseconds(
+        dayPunches
+      );
+
+
+    /*
+      Só contabiliza jornada prevista
+      em dias que possuem registros.
+    */
+
+    if (dayPunches.length > 0) {
+
+      monthlyExpected +=
+        8 *
+        60 *
+        60 *
+        1000;
+
+      monthlyWorked +=
+        worked;
+
+    }
+
+
+    const balance =
+      worked -
+      (
+        dayPunches.length > 0
+          ? 8 *
+            60 *
+            60 *
+            1000
+          : 0
+      );
+
+
+    const dateLabel =
+      formatDayNumber(
+        date
+      );
+
+
+    const dayLabel =
+      formatDayName(
+        date
+      );
+
+
+    let times = [
+      "--:--",
+      "--:--",
+      "--:--",
+      "--:--"
+    ];
+
+
+    dayPunches
+      .slice(0, 4)
+      .forEach(
+        (p, index) => {
+
+          times[index] =
+            fmtTime(
+              p.timestamp
+            );
+
+        }
+      );
+
+
+    let statusText =
+      "Sem registros";
+
+
+    if (dayPunches.length > 0) {
+
+      statusText =
+        dayPunches.length >= 4
+          ? "Jornada registrada"
+          : "Jornada incompleta";
+
+    }
+
+
+    const balanceText =
+      dayPunches.length > 0
+        ? formatDuration(
+            balance
+          )
+        : "--:--";
+
+
+    const balanceColor =
+      dayPunches.length === 0
+        ? "#777"
+        : balance >= 0
+          ? "#198754"
+          : "#c0392b";
+
+
+    rows += `
+
+      <div
+        style="
+          background:#fff;
+          border:1px solid #e5e7eb;
+          border-radius:14px;
+          padding:16px;
+          margin-bottom:12px;
+        "
+      >
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:12px;
+          "
+        >
+
+          <div>
+
+            <strong
+              style="
+                font-size:16px;
+                text-transform:capitalize;
+              "
+            >
+              ${dateLabel}
+              -
+              ${dayLabel}
+            </strong>
+
+            <div
+              style="
+                font-size:12px;
+                color:#777;
+                margin-top:3px;
+              "
+            >
+              ${statusText}
+            </div>
+
+          </div>
+
+
+          <strong
+            style="
+              color:${balanceColor};
+              font-size:16px;
+            "
+          >
+            ${balanceText}
+          </strong>
+
+        </div>
+
+
+        <div
+          style="
+            display:grid;
+            grid-template-columns:
+              repeat(4,minmax(0,1fr));
+            gap:6px;
+          "
+        >
+
+          <div
+            style="
+              background:#f5f7fa;
+              padding:9px 5px;
+              border-radius:8px;
+              text-align:center;
+            "
+          >
+
+            <div
+              style="
+                font-size:10px;
+                color:#777;
+              "
+            >
+              ENTRADA
+            </div>
+
+            <strong>
+              ${times[0]}
+            </strong>
+
+          </div>
+
+
+          <div
+            style="
+              background:#f5f7fa;
+              padding:9px 5px;
+              border-radius:8px;
+              text-align:center;
+            "
+          >
+
+            <div
+              style="
+                font-size:10px;
+                color:#777;
+              "
+            >
+              INTERVALO
+            </div>
+
+            <strong>
+              ${times[1]}
+            </strong>
+
+          </div>
+
+
+          <div
+            style="
+              background:#f5f7fa;
+              padding:9px 5px;
+              border-radius:8px;
+              text-align:center;
+            "
+          >
+
+            <div
+              style="
+                font-size:10px;
+                color:#777;
+              "
+            >
+              RETORNO
+            </div>
+
+            <strong>
+              ${times[2]}
+            </strong>
+
+          </div>
+
+
+          <div
+            style="
+              background:#f5f7fa;
+              padding:9px 5px;
+              border-radius:8px;
+              text-align:center;
+            "
+          >
+
+            <div
+              style="
+                font-size:10px;
+                color:#777;
+              "
+            >
+              SAÍDA
+            </div>
+
+            <strong>
+              ${times[3]}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        ${
+          dayPunches.length > 0
+            ? `
+              <div
+                style="
+                  margin-top:12px;
+                  padding-top:10px;
+                  border-top:1px solid #eee;
+                  display:flex;
+                  justify-content:space-between;
+                  font-size:13px;
+                "
+              >
+
+                <span>
+                  Total trabalhado
+                </span>
+
+                <strong>
+                  ${formatWorked(worked)}
+                </strong>
+
+              </div>
+            `
+            : ""
+        }
+
+      </div>
+
+    `;
+
+  }
+
+
+  const monthlyBalance =
+    monthlyWorked -
+    monthlyExpected;
+
+
+  const balanceColor =
+    monthlyBalance >= 0
+      ? "#198754"
+      : "#c0392b";
+
+
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `
+
+      <div
+        id="timesheetOverlay"
+        style="
+          position:fixed;
+          inset:0;
+          background:rgba(0,0,0,.55);
+          z-index:9999;
+          overflow-y:auto;
+          padding:20px;
+        "
+      >
+
+        <div
+          style="
+            max-width:760px;
+            margin:20px auto;
+            background:#f5f7fa;
+            border-radius:20px;
+            overflow:hidden;
+            box-shadow:0 20px 60px rgba(0,0,0,.25);
+          "
+        >
+
+          <div
+            style="
+              background:#163b5c;
+              color:white;
+              padding:22px;
+              position:sticky;
+              top:0;
+              z-index:2;
+            "
+          >
+
+            <div
+              style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+              "
+            >
+
+              <div>
+
+                <div
+                  style="
+                    font-size:12px;
+                    opacity:.8;
+                    margin-bottom:5px;
+                  "
+                >
+                  HORA CERTA
+                </div>
+
+                <h2
+                  style="
+                    margin:0;
+                    font-size:22px;
+                  "
+                >
+                  📋 Meu Espelho de Ponto
+                </h2>
+
+                <div
+                  style="
+                    margin-top:5px;
+                    text-transform:capitalize;
+                    opacity:.9;
+                  "
+                >
+                  ${monthName(now)}
+                </div>
+
+              </div>
+
+
+              <button
+                onclick="closeTimesheet()"
+                style="
+                  border:none;
+                  background:rgba(255,255,255,.15);
+                  color:white;
+                  width:40px;
+                  height:40px;
+                  border-radius:50%;
+                  font-size:20px;
+                  cursor:pointer;
+                "
+              >
+                ×
+              </button>
+
+            </div>
+
+
+            <div
+              style="
+                margin-top:18px;
+                background:rgba(255,255,255,.1);
+                border-radius:12px;
+                padding:14px;
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+              "
+            >
+
+              <span>
+                Saldo do mês
+              </span>
+
+              <strong
+                style="
+                  font-size:22px;
+                  color:${monthlyBalance >= 0 ? "#7dffad" : "#ff9b9b"};
+                "
+              >
+                ${formatDuration(monthlyBalance)}
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <div
+            style="
+              padding:18px;
+            "
+          >
+
+            ${rows || `
+
+              <div
+                style="
+                  background:white;
+                  border-radius:14px;
+                  padding:30px;
+                  text-align:center;
+                  color:#777;
+                "
+              >
+                Nenhum registro encontrado
+                neste mês.
+              </div>
+
+            `}
+
+          </div>
+
+        </div>
+
+      </div>
+
+    `
+  );
+
+}
+
+
+function closeTimesheet() {
+
+  const overlay =
+    $("timesheetOverlay");
+
+  if (overlay) {
+
+    overlay.remove();
+
+  }
 
 }
 
@@ -1373,9 +2071,11 @@ function formatAddress(address) {
   }
 
 
-  if (a.city ||
-      a.town ||
-      a.village) {
+  if (
+    a.city ||
+    a.town ||
+    a.village
+  ) {
 
     parts.push(
       a.city ||
@@ -1597,10 +2297,6 @@ async function start() {
   }
 
 
-  /*
-    Detecta recuperação de senha
-  */
-
   const hash =
     window.location.hash || "";
 
@@ -1673,39 +2369,12 @@ db.auth.onAuthStateChange(
 
     }
 
-
-    if (
-      event === "SIGNED_IN" &&
-      session?.user
-    ) {
-
-      /*
-        Não recarrega a tela durante
-        recuperação de senha.
-      */
-
-      const hash =
-        window.location.hash || "";
-
-
-      if (
-        hash.includes(
-          "type=recovery"
-        )
-      ) {
-
-        return;
-
-      }
-
-    }
-
   }
 );
 
 
 /* =========================================================
-   INICIAR APLICAÇÃO
+   INICIAR
 ========================================================= */
 
 start();
