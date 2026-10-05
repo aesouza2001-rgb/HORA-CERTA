@@ -513,7 +513,14 @@ function renderApp() {
 
     <div class="app">
 
-      <header class="topbar">
+      <header
+        class="topbar"
+        style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+        "
+      >
 
         <div>
 
@@ -535,9 +542,21 @@ function renderApp() {
       </header>
 
 
-      <main class="container">
+      <main
+        class="container"
+        style="
+          text-align:center;
+        "
+      >
 
-        <section class="welcome">
+        <!-- BOAS-VINDAS -->
+
+        <section
+          class="welcome"
+          style="
+            text-align:center;
+          "
+        >
 
           <h2>
             Olá, ${employee.name || "Funcionário"} 👋
@@ -547,61 +566,80 @@ function renderApp() {
             ${fmtDate()}
           </p>
 
+          <!-- RELÓGIO -->
+
           <div
             id="clock"
             class="clock"
+            style="
+              margin-top:18px;
+              font-size:48px;
+              font-weight:800;
+              letter-spacing:1px;
+              line-height:1;
+            "
           >
-            --:--
+            --:--:--
+          </div>
+
+
+          <!-- LOCALIZAÇÃO -->
+
+          <div
+            id="locationStatus"
+            class="location-status"
+            style="
+              margin-top:12px;
+              text-align:center;
+              font-size:14px;
+              color:#777;
+              min-height:22px;
+            "
+          >
+            📍 Aguardando localização...
           </div>
 
         </section>
 
 
+        <!-- STATUS -->
+
         <div
-          id="locationStatus"
-          class="location-status"
+          id="todayStatus"
+          style="
+            margin:18px auto 12px;
+            font-size:15px;
+            font-weight:700;
+            color:#555;
+            text-align:center;
+          "
         >
-          📍 Aguardando localização
+          Você está fora
         </div>
 
+
+        <!-- BOTÃO PRINCIPAL -->
 
         <button
           id="punchBtn"
           onclick="punch()"
           class="punch-btn"
+          style="
+            width:100%;
+            min-height:100px;
+            border:none;
+            border-radius:18px;
+            padding:22px 18px;
+            font-size:21px;
+            font-weight:800;
+            letter-spacing:.3px;
+            cursor:pointer;
+            box-shadow:0 8px 22px rgba(0,0,0,.15);
+            transition:all .2s ease;
+          "
         >
-          REGISTRAR ENTRADA
+          🟢 REGISTRAR ENTRADA
         </button>
-
-
-        <section class="stats-grid">
-
-          <div class="stat">
-
-            <span>
-              Registros hoje
-            </span>
-
-            <strong id="todayCount">
-              0
-            </strong>
-
-          </div>
-
-
-          <div class="stat">
-
-            <span>
-              Status
-            </span>
-
-            <strong id="todayStatus">
-              Fora
-            </strong>
-
-          </div>
-
-        </section>
 
 
         <!-- BANCO DE HORAS -->
@@ -609,8 +647,9 @@ function renderApp() {
         <div
           class="card"
           style="
-            margin-top:16px;
+            margin-top:18px;
             border-left:5px solid #163b5c;
+            text-align:left;
           "
         >
 
@@ -724,7 +763,12 @@ function renderApp() {
 
         <!-- JORNADA DE HOJE -->
 
-        <section class="card">
+        <section
+          class="card"
+          style="
+            text-align:left;
+          "
+        >
 
           <h3>
             Jornada de hoje
@@ -1057,9 +1101,6 @@ function renderToday() {
     todayPunchList();
 
 
-  const count =
-    $("todayCount");
-
   const status =
     $("todayStatus");
 
@@ -1071,7 +1112,6 @@ function renderToday() {
 
 
   if (
-    !count ||
     !status ||
     !button ||
     !container
@@ -1082,18 +1122,14 @@ function renderToday() {
   }
 
 
-  count.textContent =
-    list.length;
-
-
   const working =
     list.length % 2 === 1;
 
 
   status.textContent =
     working
-      ? "Trabalhando"
-      : "Fora";
+      ? "🟢 Você está trabalhando"
+      : "⚪ Você está fora";
 
 
   status.style.color =
@@ -1102,10 +1138,20 @@ function renderToday() {
       : "#555";
 
 
-  button.textContent =
+  button.innerHTML =
     working
-      ? "REGISTRAR SAÍDA"
-      : "REGISTRAR ENTRADA";
+      ? "🔴 REGISTRAR SAÍDA"
+      : "🟢 REGISTRAR ENTRADA";
+
+
+  button.style.background =
+    working
+      ? "#c0392b"
+      : "#163b5c";
+
+
+  button.style.color =
+    "#fff";
 
 
   if (list.length === 0) {
@@ -1345,18 +1391,6 @@ function openTimesheet() {
     now.getMonth();
 
 
-  /*
-    Primeiro e último dia do mês atual.
-  */
-
-  const firstDay =
-    new Date(
-      year,
-      month,
-      1
-    );
-
-
   const lastDay =
     new Date(
       year,
@@ -1390,10 +1424,6 @@ function openTimesheet() {
       );
 
 
-    /*
-      Não mostra dias futuros.
-    */
-
     if (date > now) {
 
       break;
@@ -1420,11 +1450,6 @@ function openTimesheet() {
         dayPunches
       );
 
-
-    /*
-      Só contabiliza jornada prevista
-      em dias que possuem registros.
-    */
 
     if (dayPunches.length > 0) {
 
@@ -1723,12 +1748,6 @@ function openTimesheet() {
   const monthlyBalance =
     monthlyWorked -
     monthlyExpected;
-
-
-  const balanceColor =
-    monthlyBalance >= 0
-      ? "#198754"
-      : "#c0392b";
 
 
   document.body.insertAdjacentHTML(
@@ -2118,7 +2137,7 @@ async function punch() {
   button.disabled = true;
 
   button.textContent =
-    "OBTENDO LOCALIZAÇÃO...";
+    "📍 OBTENDO LOCALIZAÇÃO...";
 
 
   const location =
